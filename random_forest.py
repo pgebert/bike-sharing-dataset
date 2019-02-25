@@ -16,8 +16,18 @@ import os.path
 from dataloader import Dataloader
 
 class RandomForest():
+    ''' Random forest data model wrapper to provide addtional methods for the Bike Sharing Dataset.
+    
+    '''
+
 
     def __init__(self, data_path='Bike-Sharing-Dataset/hour.csv', model_file='model.pth'):
+        '''Initialize the random forest model.
+        
+        Keyword Arguments:
+            data_path {str} -- Path to the Bike Sharing Dataset. (default: {'Bike-Sharing-Dataset/hour.csv'})
+            model_file {str} -- In-/Out-path for the random forest model. (default: {'model.pth'})
+        '''
 
         # Make results reproducible
         random.seed(100)
@@ -50,6 +60,11 @@ class RandomForest():
         self.model_file = model_file
 
     def _saveModel(self):
+        ''' Store the random forest model on the disk.
+        
+        Returns:
+            boolean -- success of data storage
+        '''
 
         success = False
         if self.model is not None:
@@ -59,6 +74,12 @@ class RandomForest():
 
 
     def _loadModel(self):
+        ''' Load random forest model from the disk.
+        
+        Returns:
+            boolean -- success of model loading
+        '''
+
 
         success = False
         if os.path.exists(self.model_file):
@@ -67,6 +88,14 @@ class RandomForest():
         return success
 
     def _evaluateOnDataset(self, dataset, table):
+        ''' Evaluate data model on a given dataset [train, val, test, full].
+        
+        Arguments:
+            dataset {str} -- Dataset for evaluation. Possibilities: train, val, test, full
+            table {[type]} -- Pretty table with four columns to store the results
+        
+        '''
+
 
          # Check model loaded
         if self.model is None:
@@ -81,9 +110,16 @@ class RandomForest():
 
         table.add_row([type(self.model).__name__, dataset, format(mse, '.2f'), format(rmsle, '.2f'), format(score, '.2f')])
 
-        return mse, score, rmsle
-
     def randomizedParameterSearch(self, iter=100):
+        ''' Defines a parameter grid and performs a random search using three fold cross validation to estimate 
+        the best parameter set for the random forest data model.
+        
+        Keyword Arguments:
+            iter {int} -- Number of search iterations. (default: {100})        
+        Returns:
+            [dict of str] -- Dictionary with the best random forest parameters found in this search.
+        '''
+
 
         # Number of trees in random forest
         n_estimators = [int(x) for x in np.linspace(start = 10, stop = 1000, num = 10)]
@@ -119,11 +155,14 @@ class RandomForest():
         return self.model.get_params()
 
     def train(self):
-
+        ''' Train the random forest model on the training data.
+        '''
         # Train model
         self.model.fit(self.samples['train'], self.labels['train'])
 
     def evaluate(self):
+        ''' Evaluate the random forest performance on the train and validation set.
+        '''
 
         table = PrettyTable()
         table.field_names = ["Model", "Dataset", "Mean Squared Error", 'RMSLE', "R² score"]
@@ -134,6 +173,9 @@ class RandomForest():
         print(table)
 
     def featureImportances(self):
+        ''' Print the feature importances of a trained random forest model.        
+        '''
+
 
         # Check model loaded
         if self.model is None:
