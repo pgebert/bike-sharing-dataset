@@ -54,12 +54,10 @@ Both hour.csv and day.csv have the following fields, except hr which is not avai
 - registered: count of registered users
 - cnt: count of total rental bikes including both casual and registered
 
-## Descriptive Analysis
-
+## Setup
 
 ```python
 from dataloader import Dataloader
-from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 import seaborn as sns
 import matplotlib.pyplot as plt
 from prettytable import PrettyTable
@@ -81,12 +79,9 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.linear_model import LinearRegression
 
 %matplotlib inline
-init_notebook_mode(connected=True)
 ```
 
-
-<script type="text/javascript">window.PlotlyConfig = {MathJaxConfig: 'local'};</script><script type="text/javascript">if (window.MathJax) {MathJax.Hub.Config({SVG: {font: "STIX-Web"}});}</script><script>requirejs.config({paths: { 'plotly': ['https://cdn.plot.ly/plotly-latest.min']},});if(!window._Plotly) {require(['plotly'],function(plotly) {window._Plotly=plotly;});}</script>
-
+## Descriptive Analysis
 
 Provide data set splits for training, validation, and testing:
 
