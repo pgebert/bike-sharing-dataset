@@ -504,13 +504,22 @@ __Interpretation:__ The result corresponds to the high correlation of the hour a
 
 The python code to reproduce the provided analysis, plots and models is provided including documentation and unittests. This guarantees the reliability of the code securely, facilitates maintenance and allows potential colleagues to extend the code.
 
-Create a python environment using conda and the ‘env.yaml’ file: conda env create --file=env.yaml
+Create a python environment using conda and the ‘env.yaml’ file:
 
-All analysis steps are provided in more detail in the ‘Bike Sharing Data Science Project.ipynb’ jupyter notebook. Run it with the following command from the source folder: jupyter notebook
+```conda env create --file=env.yaml```
 
-The random forest is implemented in the ‘random_forest.py’ file. Run it with the following command from the source folder:  python random_forest.py
+All analysis steps are provided in more detail in the ‘Bike Sharing Data Science Project.ipynb’ jupyter notebook. Run it with the following command from the source folder:
 
-To run the unittests for the random forest code, you can run the unittest detection of python: python -m unittest
+```jupyter notebook```
+
+The random  forest is implemented in the ‘random_forest.py’ file. Run it with the following command from the source folder: 
+
+```python random_forest.py```
+
+To run the unittests for the random forest code, you can run the unittest detection of python:
+
+```python -m unittest```
+
 
 ## Future Work
 
