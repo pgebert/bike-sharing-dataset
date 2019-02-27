@@ -1,11 +1,12 @@
 import pandas as pd
 import numpy as np
 from sklearn.metrics import mean_squared_log_error
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.model_selection import RandomizedSearchCV
 import random
 # Sklearn models
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import KFold
 
 from prettytable import PrettyTable
 import matplotlib.pyplot as plt
@@ -21,12 +22,11 @@ class RandomForest():
     '''
 
 
-    def __init__(self, data_path='Bike-Sharing-Dataset/hour.csv', model_file='model.pth'):
+    def __init__(self, data_path='Bike-Sharing-Dataset/hour.csv'):
         '''Initialize the random forest model.
         
         Keyword Arguments:
-            data_path {str} -- Path to the Bike Sharing Dataset. (default: {'Bike-Sharing-Dataset/hour.csv'})
-            model_file {str} -- In-/Out-path for the random forest model. (default: {'model.pth'})
+            data_path {str} -- Path to the Bike Sharing Dataset. (default: {'Bike-Sharing-Dataset/hour.csv'})            
         '''
 
         # Make results reproducible
@@ -35,18 +35,16 @@ class RandomForest():
         # Load data form bike sharing csv
         self.data = {}
         dataloader = Dataloader(data_path)
-        self.data['train'], self.data['val'], self.data['test'] = dataloader.getData()
         self.data['full'] = dataloader.getFullData()
 
         # Define feature and target variables
         self.features= ['season', 'mnth', 'hr', 'holiday', 'weekday', 'workingday', 'weathersit', 'temp', 'atemp', 'hum', 'windspeed']
         self.target = ['cnt']
 
-        # Get samples and labels
+        # Convert pandas frame into samples and labels
         self.samples, self.labels = {}, {}
-        for dataset in ['train', 'val', 'test', 'full']:
-            self.samples[dataset] = self.data[dataset][self.features].values
-            self.labels[dataset] = self.data[dataset][self.target].values.ravel()        
+        self.samples['full'] = self.data['full'][self.features].values
+        self.labels['full'] = self.data['full'][self.target].values.ravel()    
 
         # Define model 
         self.model = RandomForestRegressor(bootstrap=True, criterion='mse', max_depth=None,
@@ -54,61 +52,38 @@ class RandomForest():
            min_impurity_decrease=0.0, min_impurity_split=None,
            min_samples_leaf=1, min_samples_split=4,
            min_weight_fraction_leaf=0.0, n_estimators=200, n_jobs=None,
-           oob_score=False, random_state=None, verbose=0, warm_start=False)
+           oob_score=False, random_state=100, verbose=0, warm_start=False)
 
-        # Model path
-        self.model_file = model_file
-
-    def _saveModel(self):
+    def _saveModel(self, model_file='model.pth'):
         ''' Store the random forest model on the disk.
-        
+
+        Keyword Arguments:
+            model_file {str} -- Model path (default: {'model.pth'})        
         Returns:
             boolean -- success of data storage
         '''
 
         success = False
         if self.model is not None:
-            pickle.dump(self.model, open(self.model_file, 'wb'))
+            pickle.dump(self.model, open(model_file, 'wb'))
             success = True
         return success
 
 
-    def _loadModel(self):
-        ''' Load random forest model from the disk.
-        
-        Returns:
-            boolean -- success of model loading
-        '''
+    def _loadModel(self, model_file='model.pth'):
+        ''' Loads the random forest model from the disk.
 
+        Keyword Arguments:
+            model_file {str} -- Model path (default: {'model.pth'})        
+        Returns:
+            boolean -- success of data loading
+        '''
 
         success = False
-        if os.path.exists(self.model_file):
-            self.model = pickle.load(open(self.model_file, 'rb'))
+        if os.path.exists(model_file):
+            self.model = pickle.load(open(model_file, 'rb'))
             success = True
         return success
-
-    def _evaluateOnDataset(self, dataset, table):
-        ''' Evaluate data model on a given dataset [train, val, test, full].
-        
-        Arguments:
-            dataset {str} -- Dataset for evaluation. Possibilities: train, val, test, full
-            table {[type]} -- Pretty table with four columns to store the results
-        
-        '''
-
-
-         # Check model loaded
-        if self.model is None:
-            print("Please load or train a model before!")
-            return
-
-        pred = self.model.predict(self.samples[dataset])
-
-        mse = mean_squared_error(self.labels[dataset], pred)
-        score = self.model.score(self.samples[dataset], self.labels[dataset])    
-        rmsle = np.sqrt(mean_squared_log_error(self.labels[dataset], pred))
-
-        table.add_row([type(self.model).__name__, dataset, format(mse, '.2f'), format(rmsle, '.2f'), format(score, '.2f')])
 
     def randomizedParameterSearch(self, iter=100):
         ''' Defines a parameter grid and performs a random search using three fold cross validation to estimate 
@@ -149,38 +124,108 @@ class RandomForest():
         # search across 100 different combinations, and use all available cores
         self.model = RandomizedSearchCV(estimator = rf, param_distributions = random_grid, n_iter =iter, cv = 3, verbose=2, random_state=0, n_jobs=-1)
 
-        # Train model with best parameters
-        self.model.fit(self.samples['train'], self.labels['train'])
-
         return self.model.get_params()
 
-    def train(self):
-        ''' Train the random forest model on the training data.
+    def train(self, samples, labels):
+        '''Train the random forest model on the training data.
+        
+        Keyword Arguments:
+            samples {pandas data frame} -- Training samples
+            labels {list of int} -- Training labels
         '''
-        # Train model
-        self.model.fit(self.samples['train'], self.labels['train'])
 
-    def evaluate(self):
-        ''' Evaluate the random forest performance on the train and validation set.
+        assert(len(samples) == len(labels))
+        self.model.fit(samples, labels)        
+
+    def test(self, samples, labels):
+        ''' Evaluate the random forest performance on the test data.
+        
+        Keyword Arguments:
+            samples {pandas data frame} -- Test samples
+            labels {list of int} -- Test labels
+        Returns:
+            [dict of int] -- Dictionary with the test results.
         '''
+
+         # Check model loaded
+        if self.model is None:
+            print("Please load or train a model before!")
+            return
+
+        assert(len(samples) == len(labels)) 
+
+        pred = self.model.predict(samples)
+
+        mse = mean_squared_error(labels, pred)
+        mae = mean_absolute_error(labels, pred)
+        score = self.model.score(samples, labels)    
+        rmsle = np.sqrt(mean_squared_log_error(labels, pred))
+
+        return { 'mse': mse, 'mae': mae, 'score': score, 'rmsle': rmsle}
+
+    def kFoldCrossvalidation(self): 
+        ''' Runs a three-fold cross-validation on the Bike Sharing dataset.
+        '''
+
 
         table = PrettyTable()
-        table.field_names = ["Model", "Dataset", "Mean Squared Error", 'RMSLE', "R² score"]
+        table.field_names = ["Model", "Split", "Mean Squared Error", "Mean Absolute Error", 'RMSLE', "R² score"]
 
-        self._evaluateOnDataset('train', table)
-        self._evaluateOnDataset('val', table)
+        kf = KFold(n_splits=3, shuffle=True, random_state=100)
 
+        res = []
+        split = 1
+        
+        for train_index, test_index in kf.split(self.samples['full']):
+
+            samples, labels = {}, {}
+            samples['train'], labels['train'] = self._selectData(train_index)
+            samples['test'], labels['test'] = self._selectData(test_index)            
+
+            self.train(samples['train'], labels['train'])
+            res.append(self.test(samples['test'], labels['test']))    
+            table.add_row([type(self.model).__name__, split, format(res[-1]['mse'], '.2f'), format(res[-1]['mae'], '.2f'), format(res[-1]['rmsle'], '.2f'), format(res[-1]['score'], '.2f')])
+            split += 1
+
+        mse = np.mean([item['mse'] for item in res])
+        mae = np.mean([item['mae'] for item in res])
+        score = np.mean([item['score'] for item in res])
+        rmsle = np.mean([item['rmsle'] for item in res])
+
+        table.add_row([type(self.model).__name__, 'Mean', format(mse, '.2f'), format(mae, '.2f'), format(rmsle, '.2f'), format(score, '.2f')])
         print(table)
+
+      def _selectData(self, index_list): 
+        ''' Filters the full dataset depending on the indices in the provided index list.
+        
+        Arguments:
+            index_list {list of int} --  List with sample indices to keep.
+        Returns:
+            samples -- samples with the provided indices
+            labels -- labels with the provided indices
+        '''
+
+        samples = [self.samples['full'][i] for i in index_list]
+        labels = [self.labels['full'][i] for i in index_list]
+
+        return samples, labels
+
 
     def featureImportances(self):
         ''' Print the feature importances of a trained random forest model.        
         '''
 
-
         # Check model loaded
         if self.model is None:
             print("Please load or train a model before!")
             return
+
+        # Set first split as default training data
+        kf = KFold(n_splits=3, shuffle=True, random_state=100)        
+        train_index, test_index = next(kf.split(self.samples['full']))
+        samples, labels = self._selectData(train_index) 
+
+        self.model.fit(samples, labels)
 
         # Get sorted feature importances from model
         importances = self.model.feature_importances_
@@ -189,15 +234,14 @@ class RandomForest():
 
         # Print the feature ranking
         print("Feature ranking:")
-        for f in range(self.samples['val'].shape[1]):
+        for f in range(len(self.features)):
             print("%d. feature %s (%f)" % (f + 1, self.features[indices[f]], importances[indices[f]]))
 
         # Plot the feature importances of the forest
         plt.figure()
         plt.title("Feature importances")
-        plt.bar(range(self.samples['val'].shape[1]), importances[indices], color="cornflowerblue", yerr=std[indices], align="center")
-        plt.xticks(range(self.samples['val'].shape[1]), [self.features[i] for i in indices])
-        plt.xlim([-1, self.samples['val'].shape[1]])
+        plt.bar(range(len(self.features)), importances[indices], color="cornflowerblue", yerr=std[indices], align="center")
+        plt.xticks(range(len(self.features)), [self.features[i] for i in indices])
         plt.show()
 
     
@@ -206,7 +250,7 @@ if __name__ == "__main__":
     model = RandomForest()
     # model.train()
     # model._saveModel()
-    model._loadModel()
-    model.evaluate()
+    # model._loadModel()
+    model.kFoldCrossvalidation()
     # model.featureImportances()
 

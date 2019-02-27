@@ -34,9 +34,9 @@ class Dataloader():
             [pandas frames] -- the pandas frames for the different splits
         '''
 
-        # Split data into train, validation and test set with 80:10:10 ratio
-        split_train = int(80 / 100 * len(self.data)) 
-        split_val = int(90 / 100 * len(self.data)) 
+        # Split data into train, validation and test set with 60:20:20 ratio
+        split_train = int(60 / 100 * len(self.data)) 
+        split_val = int(80 / 100 * len(self.data)) 
         train = self.data[:split_train]
         val = self.data[split_train:split_val]
         test = self.data[split_val:]
